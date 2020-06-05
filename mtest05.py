@@ -76,12 +76,12 @@ print()
 print('files in backup with latest version for each stem')
 print(df2)
 
-# for debug (faster run)
-df2 = df2.loc[df2['stem'].isin(['trading_oanda_h1_mysql', 'trading_oanda_d1_mysql', 'vb_ubuntu_focal']),:]
-df2 = df2.sort_values(by=['stem','bu_ts'])
-print()
-print('files in backup for debug run')
-print(df2)
+# # for debug (faster run)
+# df2 = df2.loc[df2['stem'].isin(['trading_oanda_h1_mysql', 'trading_oanda_d1_mysql', 'vb_ubuntu_focal']),:]
+# df2 = df2.sort_values(by=['stem','bu_ts'])
+# print()
+# print('files in backup for debug run')
+# print(df2)
 
 # for each row in (df2), we are going to transfer or split the corresponding file to backup_for_crashplan.
 # We want to
