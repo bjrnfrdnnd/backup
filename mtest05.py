@@ -39,10 +39,10 @@ def make_dataframe(dir: Path, mode: EnumMakeDataFrameMode):
     all_files2 = []
     if mode == EnumMakeDataFrameMode.BACKUP:
         # only files need to be backuped in backup dir
-        all_filesdirs = [file for file in dir.rglob('*') if file.is_file() and (file.name.endswith('.tar.gz') or file.name.endswith('.sql.gz') or file.name.endswith('.log'))]
+        all_filesdirs = [file for file in dir.rglob('*') if file.is_file() and (file.name.endswith('.tar.gz') or file.name.endswith('.sql.gz') or file.name.endswith('.log') or file.name.endswith('.bak') or file.name.endswith('.vacuumlog'))]
     elif mode == EnumMakeDataFrameMode.BACKUP_FOR_CRASHPLAN:
         # there are both files and dirs
-        all_filesdirs = [file for file in dir.rglob('*') if file.is_file() and (file.name.endswith('.tar.gz') or file.name.endswith('.sql.gz') or file.name.endswith('.log'))]
+        all_filesdirs = [file for file in dir.rglob('*') if file.is_file() and (file.name.endswith('.tar.gz') or file.name.endswith('.sql.gz') or file.name.endswith('.log') or file.name.endswith('.bak') or file.name.endswith('.vacuumlog'))]
         all_filesdirs += [file for file in dir.rglob('*') if file.is_dir()]
 
     for f in all_filesdirs:
@@ -63,21 +63,21 @@ def make_dataframe(dir: Path, mode: EnumMakeDataFrameMode):
 #  First step: find files in backup that needs to be transferred  to backup for crashplan  directory ;
 #  they also need to be possibly split into many small files .
 df = make_dataframe(dir=DATA_DIR, mode=EnumMakeDataFrameMode.BACKUP)
-df = df.sort_values(by=['stem','bu_ts'])
+df = df.sort_values(by=['stem', 'bu_ts'])
 print()
 print('files found in backup')
 print(df)
 
 # get a dataframe where only the latest version is contained
 df2: pd.DataFrame
-df2 = df.groupby(['stem','suffix']).max().reset_index()
-df2 = df2.sort_values(by=['stem','bu_ts'])
+df2 = df.groupby(['stem', 'suffix']).max().reset_index()
+df2 = df2.sort_values(by=['stem', 'bu_ts'])
 print()
 print('files in backup with latest version for each stem')
 print(df2)
 
 # # for debug (faster run)
-# df2 = df2.loc[df2['stem'].isin(['trading_oanda_h1_mysql', 'trading_oanda_d1_mysql', 'vb_ubuntu_focal']),:]
+# df2 = df2.loc[df2['stem'].isin(['trading_oanda_h1_mysql', 'trading_oanda_d1_mysql', 'vb_ubuntu_focal', 'postgres_postgresql']),:]
 # df2 = df2.sort_values(by=['stem','bu_ts'])
 # print()
 # print('files in backup for debug run')
@@ -91,7 +91,7 @@ print(df2)
 # * if suffix.endswith('log'):
 #   * just transfer the file
 for (index, row) in df2.iterrows():
-    if row['suffix'].endswith('gz'):
+    if row['suffix'].endswith('gz') or row['suffix'].endswith('bak'):
         # a) create the dir
         #    * if the dir exists, delete it
         path_to_copy_from = row['bu_path']
@@ -107,7 +107,7 @@ for (index, row) in df2.iterrows():
 
         sh.split('-a', 6, '-d', '-b', SPLITSIZE, path_to_copy_from, str(dir_to_copy_to) + '/part_')
 
-    elif row['suffix'].endswith('log'):
+    elif row['suffix'].endswith('log') or row['suffix'].endswith('vacuumlog'):
         # a) copy the file
         #    * replace the file if it exists
         path_to_copy_from = row['bu_path']
@@ -123,9 +123,9 @@ for (index, row) in df2.iterrows():
 # now delete all file/dirs in backup_for_crashplan except the 3 newest ones
 df = make_dataframe(dir=BU_FCP_DIR, mode=EnumMakeDataFrameMode.BACKUP_FOR_CRASHPLAN)
 df: pd.DataFrame
-df = df.sort_values(by=['stem','bu_ts'])
+df = df.sort_values(by=['stem', 'bu_ts'])
 # remove the main dirs data, logs, mysql
-df = df.loc[~df['name'].isin(['data','logs','mysql']),:]
+df = df.loc[~df['name'].isin(['data', 'logs', 'mysql', 'postgresql']),:]
 print()
 print('files/dirs found in backup_for_crashplan')
 print(df)
@@ -139,7 +139,7 @@ df = df.groupby(['stem','suffix']).apply(bla)
 df:pd.DataFrame
 if len(df) > 0:
     df.reset_index(drop=True, inplace=True)
-    df = df.sort_values(by=['stem','bu_ts'])
+    df = df.sort_values(by=['stem', 'bu_ts'])
     print()
     print('files/dirs to remove')
     print(df)
