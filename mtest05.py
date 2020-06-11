@@ -29,11 +29,24 @@ pd.set_option('display.max_colwidth', 300)
 
 elevate()
 
+class EnumType(Enum):
+    FILE = 'file'
+    DIR = 'dir'
+
 def remove_file_or_dir(f: Path):
     if f.exists() and f.is_file():
         f.unlink()
     if f.exists() and f.is_dir():
         shutil.rmtree(f)
+
+def exists_file_or_dir(f: Path, type_: EnumType):
+    if type_ == EnumType.FILE:
+        if f.exists() and f.is_file():
+            return True
+    if type_ == EnumType.DIR:
+        if f.exists() and f.is_dir():
+            return True
+    return False
 
 def make_dataframe(dir: Path, mode: EnumMakeDataFrameMode):
     all_files2 = []
@@ -96,29 +109,46 @@ for (index, row) in df2.iterrows():
         #    * if the dir exists, delete it
         path_to_copy_from = row['bu_path']
         dir_to_copy_to = Path(BU_FCP_DIR) / Path(row['bu_rel_path']).parent / Path(row['stem'] + '-' + row['bu_ts'])
-        remove_file_or_dir(dir_to_copy_to)
-        # create the dir and all missing parents
-        dir_to_copy_to.mkdir(parents=True)
+        # if the destination is a file, remove it
+        if exists_file_or_dir(dir_to_copy_to, EnumType.FILE):
+            remove_file_or_dir(dir_to_copy_to)
 
-        # b) split the file and put the parts in the dir
-        #  -a: suffix is 6 chars long
-        #  -d: suffix is numeric
-        #  -b: size of parts
+        if exists_file_or_dir(dir_to_copy_to, EnumType.DIR):
+            # if the destination is an existing dir, we suppose that this is an item that already is correctly backed up
+            pass
+        else:
+            # destination does not exist (if destination was a file, it was removed; if it was a dir, we do not get here)
+            # create the dir and all missing parents
+            dir_to_copy_to.mkdir(parents=True)
 
-        sh.split('-a', 6, '-d', '-b', SPLITSIZE, path_to_copy_from, str(dir_to_copy_to) + '/part_')
+            # b) split the file and put the parts in the dir
+            #  -a: suffix is 6 chars long
+            #  -d: suffix is numeric
+            #  -b: size of parts
+
+            sh.split('-a', 6, '-d', '-b', SPLITSIZE, path_to_copy_from, str(dir_to_copy_to) + '/part_')
 
     elif row['suffix'].endswith('log') or row['suffix'].endswith('vacuumlog'):
         # a) copy the file
         #    * replace the file if it exists
         path_to_copy_from = row['bu_path']
         path_to_copy_to = Path(BU_FCP_DIR) / Path(row['bu_rel_path'])
-        remove_file_or_dir(path_to_copy_to)
-        # copy preserving all metadata
-        # create the dir and all missing parents
-        if not path_to_copy_to.parent.exists():
-            path_to_copy_to.parent.mkdir(parents=True)
-        shutil.copy2(path_to_copy_from, path_to_copy_to)
-        pass
+
+        # if the destination is a dir, remove it
+        if exists_file_or_dir(path_to_copy_to, EnumType.DIR):
+            remove_file_or_dir(path_to_copy_to)
+
+        if exists_file_or_dir(path_to_copy_to, EnumType.FILE):
+            # if the destination is an existing file, we suppose that this is an item that already is correctly backed up
+            pass
+        else:
+            # destination does not exist (if destination was a dir, it was removed; if it was a file, we do not get here)
+            # copy preserving all metadata
+            # create the parent dir and all missing parents
+            if not path_to_copy_to.parent.exists():
+                path_to_copy_to.parent.mkdir(parents=True)
+            shutil.copy2(path_to_copy_from, path_to_copy_to)
+            pass
 
 # now delete all file/dirs in backup_for_crashplan except the 3 newest ones
 df = make_dataframe(dir=BU_FCP_DIR, mode=EnumMakeDataFrameMode.BACKUP_FOR_CRASHPLAN)
