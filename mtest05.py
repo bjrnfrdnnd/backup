@@ -125,7 +125,7 @@ for (index, row) in df2.iterrows():
             #  -a: suffix is 6 chars long
             #  -d: suffix is numeric
             #  -b: size of parts
-
+            print(f'splitting: {path_to_copy_from} --> {dir_to_copy_to}')
             sh.split('-a', 6, '-d', '-b', SPLITSIZE, path_to_copy_from, str(dir_to_copy_to) + '/part_')
 
     elif row['suffix'].endswith('log') or row['suffix'].endswith('vacuumlog'):
@@ -147,6 +147,7 @@ for (index, row) in df2.iterrows():
             # create the parent dir and all missing parents
             if not path_to_copy_to.parent.exists():
                 path_to_copy_to.parent.mkdir(parents=True)
+            print(f'copying: {path_to_copy_from} --> {path_to_copy_to}')
             shutil.copy2(path_to_copy_from, path_to_copy_to)
             pass
 
